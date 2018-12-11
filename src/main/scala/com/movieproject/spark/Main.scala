@@ -92,8 +92,11 @@ object Main {
     // --- Clean tags entries -------
     val tagFile = spark.read.textFile("src/main/resources/ml-latest/tags.csv")
     val tagHeader = tagFile.first()
+    val alphabetMatcher = "^[a-zA-Z0-9]*$".r
     val tagDataset: Dataset[MovieTag] = tagFile
         .filter(line => line != tagHeader)
+        .filter(line => line.split(",")(2).trim.nonEmpty)
+        .filter(line => alphabetMatcher.pattern.matcher(line.split(",")(2)).matches)
         .filter(line => line.split(",")(3).trim.length == 10)
         .filter(line => line.split(",")(3).trim.length.toLong > 0)
         .map(line => {
@@ -117,10 +120,10 @@ object Main {
       })
 
     // ---- Create parquets from the datasets
-    movieDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/movies.parquet");
-    ratingDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/ratings.parquet");
+//    movieDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/movies.parquet");
+//    ratingDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/ratings.parquet");
     tagDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/tags.parquet");
-    genomeDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/genome.parquet");
+//    genomeDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/genome.parquet");
 
 //    // Show user dataset
 //    usersDataset.show()
