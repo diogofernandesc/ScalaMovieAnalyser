@@ -15,6 +15,7 @@ import scala.util.Try
 
 object Main {
 
+
   def loadMovieTags(): Map[Int, String] = {
     // Handle character encoding issues:
     implicit val codec = Codec("UTF-8")
