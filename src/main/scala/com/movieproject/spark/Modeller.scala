@@ -17,6 +17,8 @@ object Modeller {
   private def isElementContainedInColumn(element: String => Boolean):
   UserDefinedFunction = udf((column: mutable.WrappedArray[String])  => column.contains(element))
 
+  var movieGenres: Map[Int, String] = Map()
+
   def getLatestTimestamp: Timestamp ={
     val today:java.util.Date = Calendar.getInstance.getTime
     val timeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
@@ -54,11 +56,13 @@ object Modeller {
 
     val genreList = List("Action", "Adventure", "Animation", "Children", "Comedy", "Crime",
       "Documentary", "Drama", "Fantasy", "Film-Noir", "Horror", "Musical", "Mystery", "Romance", "Sci-Fi", "Thriller",
-      "War", "Western").map(s => movies
-      .filter(array_contains($"genres", s))
-      .select("movieId").map(r => r.getInt(0)).collect.toList)
+      "War", "Western")
 
-    println(genreList(0).length)
+    val newList = genreList.map(s => movies
+    .filter(array_contains($"genres", s))
+    .select("movieId").map(r => r.getInt(0)).collect.toList).zipWithIndex.map(t => genreList(t._2) -> t._1).toMap
+
+//    println(genreList(0).length)
     val genresDF = movies
       .filter(array_contains($"genres", "Adventure"))
 
