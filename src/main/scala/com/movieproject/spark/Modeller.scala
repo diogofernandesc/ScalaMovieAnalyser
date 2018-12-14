@@ -10,11 +10,6 @@ import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
-
-
-
-
-
 object Modeller {
 
 
@@ -57,7 +52,7 @@ object Modeller {
 
     import spark.implicits._
 
-    val resAvg = spark.read.parquet("src/main/resources/avgMovieRatings.parquet")
+//    val resAvg = spark.read.parquet("src/main/resources/avgMovieRatings.parquet")
 
 
     val tagRatings = spark.read.parquet("src/main/resources/tagRatings.parquet")
@@ -72,15 +67,56 @@ object Modeller {
 
     val formattedTimes = ratings
       .withColumn("latest", lit(getLatestTimestamp))
-      .select($"rating", $"itemId", datediff($"latest", $"timestamp").as("timeDifference"),
+      .select($"rating", $"itemId",
         round(datediff($"latest", $"timestamp").divide(lit(7))).as[Double].as("Weeks"))
       .withColumn("Weeks", when($"Weeks" > 1, $"Weeks" - 1))
       .withColumn("loggedRating", log($"rating"))
+      .withColumn("loggedRating", when($"loggedRating" < 1, 1).otherwise(col("loggedRating")))
 //      .filter($"timeDifference" > 1).map(row => $"timeDifference").map(row => row - 1)
 
 
-    val newDs = formattedTimes.withColumn("weightedTimestampRating", lit($"loggedRating", 1) * exp(lit(-8) * $"Weeks".multiply($"Weeks")))
-    newDs.select("*").where($"weightedTimestampRating" !== 0.0).show()
+    val newDs = formattedTimes.withColumn("weightedRating", $"loggedRating" * exp(lit(-8) * $"Weeks".multiply($"Weeks")))
+
+
+
+//         Average movie rating weighted
+    val avg1 = movies.join(newDs, movies("movieId") === newDs("itemId"))
+      .select("movieId", "movieTitle", "weightedRating")
+      .groupBy("movieId")
+      .agg(avg("weightedRating"))
+      .join(movies, "movieId")
+      .select($"avg(weightedRating)".alias("avgRating"), $"movieTitle", $"movieId")
+
+    avg1.show()
+
+    val avg2 = movies.join(newDs, movies("movieId") === newDs("itemId"))
+      .select("movieId", "movieTitle", "weightedRating")
+      .groupBy("movieId")
+      .agg(count("weightedRating"))
+      .join(movies, "movieId")
+      .select($"count(weightedRating)", $"movieTitle", $"movieId")
+
+    val resAvg = avg1.join(avg2, avg1("movieId") === avg2("movieId"))
+      .select(avg1("movieId"), avg1("avgRating"), avg1("movieTitle"), avg2("count(weightedRating)").as("countRating"))
+
+
+    // Avg rating per tag with threshold
+    val tagJoin = genome.as("g")
+      .join(resAvg.as("resAvg"), $"g.movieId" === $"resAvg.movieId")
+      .select($"g.tagName", $"g.tagId", $"g.movieId", $"g.relevance", $"resAvg.avgRating", $"resAvg.countRating")
+      .where($"g.relevance" > 0.7)
+
+    val finalJoin = tagJoin.withColumn("weightedAvg", log("resAvg.countRating") * tagJoin("resAvg.avgRating"))
+
+    finalJoin.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/tagRatingTSWeight.parquet");
+
+
+    finalJoin.select("tagName", "movieId", "weightedAvg").groupBy("tagName").agg(avg("weightedAvg")).orderBy(desc("avg(weightedAvg)")).show()
+
+//    tagJoin.show()
+    tagRatings.show()
+//    newDs.withColumn("whatever", log(lit(16))).show()
+//    println(newDs.count())
 
 
 
