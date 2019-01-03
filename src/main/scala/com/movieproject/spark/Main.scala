@@ -59,21 +59,21 @@ object Main {
     // ---- Clean movie entries ----
 
     import spark.implicits._
-    val movieFile = spark.read.textFile("src/main/resources/ml-latest/movies.csv")
-    val header = movieFile.first()
-    val yearMatcher = "\\(\\d{4}\\)".r
-    val movieDataset: Dataset[Movie] = movieFile
-      .filter(line => line != header)
-      .filter(line => !yearMatcher.pattern.matcher(line.split(",")(1)).matches)
-      .filter(line => Try(line(2)).isSuccess)
-      .filter(line => Try(line.split(",")(2).nonEmpty).isSuccess)
-      .map(line => {
-        val columns = line.split(""",(?=([^\"]*\"[^\"]*\")*[^\"]*$)""")
-        val pattern = """(?<=\()\d{4}(?=\))""".r
-        val releaseYear = pattern.findFirstIn(columns(1)).getOrElse("9999") // If value is non existent, defaults to 9999
-        Movie(columns(0).trim.toInt, columns(1).replaceAll("\\(\\d{4}\\)", "").trim,
-          releaseYear.toInt, columns(2).split("\\|").toList)
-      })
+//    val movieFile = spark.read.textFile("src/main/resources/ml-latest/movies.csv")
+//    val header = movieFile.first()
+//    val yearMatcher = "\\(\\d{4}\\)".r
+//    val movieDataset: Dataset[Movie] = movieFile
+//      .filter(line => line != header)
+//      .filter(line => !yearMatcher.pattern.matcher(line.split(",")(1)).matches)
+//      .filter(line => Try(line(2)).isSuccess)
+//      .filter(line => Try(line.split(",")(2).nonEmpty).isSuccess)
+//      .map(line => {
+//        val columns = line.split(""",(?=([^\"]*\"[^\"]*\")*[^\"]*$)""")
+//        val pattern = """(?<=\()\d{4}(?=\))""".r
+//        val releaseYear = pattern.findFirstIn(columns(1)).getOrElse("9999") // If value is non existent, defaults to 9999
+//        Movie(columns(0).trim.toInt, columns(1).replaceAll("\\(\\d{4}\\)", "").trim,
+//          releaseYear.toInt, columns(2).split("\\|").toList)
+//      })
 
     // ---- Clean ratings entries -----
 
@@ -81,14 +81,13 @@ object Main {
     val ratingsHeader = ratingFile.first()
     val ratingDataset: Dataset[Rating] = ratingFile
         .filter(line => line != ratingsHeader)
-        .filter(line => line.split(",")(3).trim.length == 10)
         .filter(line => line.split(",")(3).trim.toLong > 0)
         .map(line => {
           val columns = line.split(",")
           Rating(columns(0).toInt, columns(1).toInt, columns(2).toDouble, new Timestamp(Instant.ofEpochSecond(columns(3).trim.toLong).toEpochMilli))
         })
 
-    ratingDataset.show()
+    ratingDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/ratings_real.parquet")
 
     // --- Clean tags entries -------
     val tagFile = spark.read.textFile("src/main/resources/ml-latest/tags.csv")
@@ -98,7 +97,6 @@ object Main {
         .filter(line => line != tagHeader)
         .filter(line => line.split(",")(2).trim.nonEmpty)
         .filter(line => alphabetMatcher.pattern.matcher(line.split(",")(2)).matches)
-        .filter(line => line.split(",")(3).trim.length == 10)
         .filter(line => line.split(",")(3).trim.length.toLong > 0)
         .map(line => {
           val columns = line.split(""",(?=([^\"]*\"[^\"]*\")*[^\"]*$)""")
@@ -106,24 +104,24 @@ object Main {
           MovieTag(columns(2).toLowerCase.trim, columns(0).toInt, columns(1).toInt, new Timestamp(Instant.ofEpochSecond(columns(3).trim.toLong).toEpochMilli))
         })
 
-    tagDataset.show()
+    tagDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/tags_real.parquet")
 
     // --- Join and clean genome entries -----
-    var movieTags = loadMovieTags()
-    println(movieTags)
-    val genomeFile = spark.read.textFile("src/main/resources/ml-latest/genome-scores.csv")
-    val genomeHeader = genomeFile.first()
-    val genomeDataset: Dataset[GenomeTag] = genomeFile
-      .filter(line => line != genomeHeader)
-      .map(line => {
-        val columns = line.split(",")
-        GenomeTag(columns(1).toInt, columns(0).toInt, movieTags(columns(1).toInt), columns(2).toDouble)
-      })
+//    var movieTags = loadMovieTags()
+//    println(movieTags)
+//    val genomeFile = spark.read.textFile("src/main/resources/ml-latest/genome-scores.csv")
+//    val genomeHeader = genomeFile.first()
+//    val genomeDataset: Dataset[GenomeTag] = genomeFile
+//      .filter(line => line != genomeHeader)
+//      .map(line => {
+//        val columns = line.split(",")
+//        GenomeTag(columns(1).toInt, columns(0).toInt, movieTags(columns(1).toInt), columns(2).toDouble)
+//      })
 
     // ---- Create parquets from the datasets
 //    movieDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/movies.parquet");
 //    ratingDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/ratings.parquet");
-    tagDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/tags.parquet");
+//    tagDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/tags.parquet");
 //    genomeDataset.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/genome.parquet");
 
 //    // Show user dataset
@@ -146,5 +144,13 @@ object Main {
 //      println(result)
 //    }
 //    val wordCounts = lowercaseWords.map(x => (x, 1)).reduceByKey( (x,y) => x + y )
+
+
+
+
+
+
+
+
   }
 }

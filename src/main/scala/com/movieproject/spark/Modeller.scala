@@ -39,11 +39,12 @@ object Modeller {
       .getOrCreate()
 
     val movies = spark.read.parquet("src/main/resources/movies.parquet")
-    val ratings = spark.read.parquet("src/main/resources/ratings.parquet")
+    val ratings = spark.read.parquet("src/main/resources/ratings_real.parquet")
     val tags = spark.read.parquet("src/main/resources/tags.parquet")
     val genome = spark.read.parquet("src/main/resources/genome.parquet")
 
-
+    val avgMovieRatings = spark.read.parquet("src/main/resources/avgMovieRatings.parquet")
+    avgMovieRatings.show()
     //  case class Rating(ratingId: Integer, itemId: Integer, rating: Double, timestamp: Timestamp)
     //
     //  case class GenomeTag(tagId: Integer, movieId: Integer, tagName: String, relevance: Double)
@@ -62,12 +63,38 @@ object Modeller {
     .filter(array_contains($"genres", s))
     .select("movieId").map(r => r.getInt(0)).collect.toList).zipWithIndex.map(t => genreList(t._2) -> t._1).toMap
 
+    println(newList)
+
+    for ((k,v) <- newList) movies.filter(array_contains($"genres", k))
 //    println(genreList(0).length)
-    val genresDF = movies
+//    val genresDF = movies
+//      .filter(array_contains($"genres", "Children"))
+
+
+    val genresAction = movies
+      .filter(array_contains($"genres", "Action"))
+
+    val genresAdventure = movies
       .filter(array_contains($"genres", "Adventure"))
 
+    val genresAnimation = movies
+      .filter(array_contains($"genres", "Animation"))
 
-    println(genresDF.count())
+    val genresChildren = movies
+      .filter(array_contains($"genres", "Children"))
+
+    val genresComedy = movies
+      .filter(array_contains($"genres", "Comedy"))
+
+    val genresCrime = movies
+      .filter(array_contains($"genres", "Crime"))
+
+    val genresDocumentary = movies
+      .filter(array_contains($"genres", "Animation"))
+
+    genresAction.write.mode(SaveMode.Overwrite).format("parquet").save("src/main/resources/ActionMovies.parquet");
+
+//    println(genresDF.count())
 //    movies.show()
 
 
