@@ -70,16 +70,18 @@ object Finaliser {
 
     val weightedCalc = tagJoin.withColumn("weightedAvg", log("resAvg.countRating") * tagJoin("resAvg.avgRating"))
 
+    val tagAvgRatings = weightedCalc.select("tagId",  "weightedAvg")
+      .groupBy("tagId").agg(avg("weightedAvg")).select("tagId", "avg(weightedAvg)")
+      .where($"avg(weightedAvg)" >= 7.0).orderBy(desc("avg(weightedAvg)"))
 
+    val decisionWeighting = tagAvgRatings.select("avg(weightedAvg)", "tagId")
+                            .withColumn("decisionScore", ($"avg(weightedAvg)" - lit(7.0)).divide(lit(7.0)) * lit(100))
+                            .select($"decisionScore", $"avg(weightedAvg)", $"tagId")
 
+    val decisionSum = decisionWeighting.agg(sum("decisionScore")).first().getDouble(0)
 
+    val decisionScore = decisionWeighting.withColumn("allocation", $"decisionScore".divide(lit(decisionSum)) * lit(100))
 
-
-//    weightedCalc.show()
-
-//    weightedCalc.select("tagName",  "weightedAvg").groupBy("tagName").agg(avg("weightedAvg")).orderBy(desc("avg(weightedAvg)"))
-
-    weightedCalc.select("tagName",  "weightedAvg").groupBy("tagName").agg(avg("weightedAvg")).orderBy(desc("avg(weightedAvg)")).show(false)
 
 
 
