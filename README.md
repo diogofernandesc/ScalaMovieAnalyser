@@ -1,4 +1,3 @@
-cmd + shift + p -> preview in browser
 # MovieLens Analysis
 
 [Proof of concept time decay](#proof-of-concept-trying-to-weight-ratings-based-on-how-recent-they-are)
@@ -15,7 +14,7 @@ ax.set_ylabel("Number of ratings")
 plt.show()
 ```
 
-![alt text](/Users/jf250049/Desktop/ratings_distribution.png)
+![alt text](src/main/resources/ratings_distribution.png)
 
 ```python
 df = df.groupby(pd.cut(df['avgRating'], bins=bins_avgRating)).countRating.count()
@@ -26,7 +25,7 @@ ax.set_ylabel("Number of ratings")
 plt.show()
 ```
 
-![alt text](/Users/jf250049/Desktop/average_rating_distribution.png)
+![alt text](src/main/resources/average_rating_distribution.png)
 
 #### Simple analysis - Understanding the nature of the dataset
 ###### Irrespective of which movies have which score, the distribution is as follows:
@@ -38,7 +37,7 @@ ax.set_xlabel("Rating score thresholds (bins)")
 ax.set_ylabel("Number of ratings")
 plt.show()
 ```
-![alt text](/Users/jf250049/Desktop/total_ratings_distribution.png)
+![alt text](src/main/resources/total_ratings_distribution.png)
 
 #### Weighted average rating of movies
 ###### When taking the amount of ratings each movie has, the dataset is skewed by the number of movies with very few ratings
@@ -50,7 +49,7 @@ ax.set_xlabel("Weighted average rating score (bins)")
 ax.set_ylabel("Number of ratings")
 plt.show()
 ```
-![alt text](/Users/jf250049/Desktop/weightedAvg.png)
+![alt text](src/main/resources/weightedAvg.png)
 
 ## Determining which movies to invest in
 #### Finding out which tags are most relevant
@@ -183,7 +182,7 @@ In comparison, the following is the result **without** timestamp weighting on th
 |oscar (best editing)                    |33.10239591343306 |
 
 #### Choosing a threshold tag score of 7
-![alt text](/Users/jf250049/Desktop/tagRatings.png)
+![alt text](src/main/resources/tagRatings.png)
 There are a small number of tags above the score of 8, the graph starts to level out around the score of 7, which seems like a suitable threshold.
 We are looking for outstanding movies, below 7 until roughly 3.8 tags tend to have fairly similar scores as the curve stabilises.
 
@@ -224,7 +223,7 @@ val stdDeviation = movies.join(ratingsWeighted, movies("movieId") === ratingsWei
  				.withColumn("CV", $"stdDeviation".divide($"avgRating"))
 ```
 
-![alt text](/Users/jf250049/Desktop/standardised.png)
+![alt text](src/main/resources/standardised.png)
 
 Choosing a strict threshold of 2.5 here results in
 
@@ -279,7 +278,7 @@ val genreRatings = genreDf.groupBy("genre").agg(avg("avgRating"))
 
 
 
-![alt text](/Users/jf250049/Desktop/genreScore.png)
+![alt text](src/main/resources/genreScore.png)
 ---
 #### Proof of concept - Trying to weight ratings based on how recent they are
 ###### This was done by implementing Reddit's old 'hotness' algorithm as per the below Python code in Scala - more info available at https://medium.com/hacking-and-gonzo/how-reddit-ranking-algorithms-work-ef111e33d0d9
@@ -315,7 +314,5 @@ val formattedTimes = ratings
 val newDs = formattedTimes.withColumn("weightedRating", $"loggedRating" * exp(lit(-8) * $"Weeks".multiply($"Weeks")))
 ```
 
-![alt text](/Users/jf250049/Desktop/weighted_timestamp.png)
+![alt text](src/main/resources/weighted_timestamp.png)
 
-compare the averag eof a genre to the distribution, also for tags
-look at the difference in weighted ratings after threshold is changed (currently its 0.5)
