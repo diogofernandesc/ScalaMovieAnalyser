@@ -45,7 +45,7 @@ object Modeller {
 
 
 
-    
+
     //  case class Rating(ratingId: Integer, itemId: Integer, rating: Double, timestamp: Timestamp)
     //
     //  case class GenomeTag(tagId: Integer, movieId: Integer, tagName: String, relevance: Double)
@@ -67,8 +67,7 @@ object Modeller {
     .select("movieId").map(r => r.getInt(0)).collect.toList).zipWithIndex.map(t => genreList(t._2) -> t._1).toMap
 
 
-    //TODO Average movie ratings parquet needs to be recomputed otherwise this is fine
-    for ((k,v) <- newList) avgMovieRatings.select("*").where($"movieId".isin(v:_*)).write.mode(SaveMode.Overwrite).format("parquet").save(f"src/main/resources/$k%s.parquet")
+//    for ((k,v) <- newList) avgMovieRatings.select("*").where($"movieId".isin(v:_*)).write.mode(SaveMode.Overwrite).format("parquet").save(f"src/main/resources/$k%s.parquet")
 //    println(genreList(0).length)
 //    val genresDF = movies
 //      .filter(array_contains($"genres", "Children"))

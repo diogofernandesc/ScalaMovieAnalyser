@@ -143,6 +143,7 @@ This is achieved on an individual movie basis like so: **log(movieRatingCount) *
 ```scala
 val weightedCalc = tagJoin.withColumn("weightedAvg", log("resAvg.countRating") * tagJoin("resAvg.avgRating"))
 ```
+
 |             tagName|tagId|         relevance|movieId|        avgRating|countRating|       weightedAvg|
 |--------------------|-----|------------------|-------|-----------------|-----------|------------------|
 |            original|  742|0.7595000000000001|    148|2.907754010695187|        374| 17.22627855531632|
@@ -207,6 +208,78 @@ val decisionSum = decisionWeighting.agg(sum("decisionScore")).first().getDouble(
 val decisionScore = decisionWeighting.withColumn("allocation", $"decisionScore".divide(lit(decisionSum)) * lit(100))
 ```
 Of course, the higher the threshold, the better the allocation will be as it will be more picky with percentage difference
+
+#### Establishing reliability
+Standard deviation will tells the spread of our ratings, we only want movies which are rated consistently high, so the aim is to find tags with the highest mean but lowest standard deviation
+```scala
+val stdDeviation = movies.join(ratingsWeighted, movies("movieId") === ratingsWeighted("itemId"))
+  .select("movieId", "movieTitle", "tsWeighted")
+  .groupBy("movieId")
+  .agg(stddev_pop("tsWeighted"))
+  .join(movies, "movieId")
+  .select($"stddev_pop(tsWeighted)".alias("stdDeviation"), $"movieTitle", $"movieId")
+
+ val finalRes = resAvg.join(stdDeviation, resAvg("movieId") === stdDeviation("movieId"))
+ 				.select(avg1("movieId"), avg1("avgRating"), avg1("movieTitle"), resAvg("countRating"), stdDeviation("stdDeviation"))
+ 				.withColumn("CV", $"stdDeviation".divide($"avgRating"))
+```
+
+![alt text](/Users/jf250049/Desktop/standardised.png)
+
+Choosing a strict threshold of 2.5 here results in
+
+|                                 tagName|             Score|             Allocation|
+|----------------------------------------|------------------|-----------------------|
+|brilliant                               |5.319425002823082 |     11.782570924073088|
+|marx brothers 							 |5.026661336350778 |     10.559091434195679|
+|truman capote                           |5.019494620272776 |     10.529141234989387|
+|hannibal lecter                         |4.7515702456222275|     9.409466853352319 |
+|miyazaki                      		     |4.624031829649795 |     8.876475044655706 |
+|aardman                                 |3.5395173956589603|     4.3442146639457935|
+|small town                              |3.451586399493341 |     3.9767449856573442|
+|penguins                                |3.438570352512136 |     3.922350030461318 |
+
+
+##### Discovering the highest average rating per genre
+A map is created of the form (genreName -> List of movie IDs with that genre), parquet files are created from this and then unioned together to result in one dataframe with average ratings, movie Ids and genres:
+```scala
+val genreList = List("Action", "Adventure", "Animation", "Children", "Comedy", "Crime",
+     				 "Documentary", "Drama", "Fantasy", "Film-Noir", "Horror", "Musical", "Mystery", "Romance", "Sci-Fi", "Thriller",
+      				 "War", "Western")
+
+val genreMap = genreList.map(s => movies
+      .filter(array_contains($"genres", s))
+      .select("movieId").map(r => r.getInt(0)).collect.toList).zipWithIndex.map(t => genreList(t._2) -> t._1).toMap
+
+for ((k,v) <- newList) avgMovieRatings.select("*").where($"movieId".isin(v:_*)).withColumn("genre", lit(k)).write.mode(SaveMode.Overwrite).format("parquet").save(f"src/main/resources/$k%s.parquet")
+...
+val genreRatings = genreDf.groupBy("genre").agg(avg("avgRating"))
+```
+
+|      genre|    avg(avgRating)|        allocation|
+|-----------|------------------|------------------|
+|  Animation|1.6132988326262307| 8.962771292367949|
+|Documentary|1.4741410120212364|  8.18967228900687|
+|   Children| 1.396329385919741| 7.757385477331895|
+|    Fantasy| 1.291426461385756|  7.17459145214309|
+|     Comedy|1.2447117022416898| 6.915065012453832|
+|      Drama|1.2335428274643823| 6.853015708135457|
+|    Romance|1.2301248822546706|6.8340271236370596|
+|    Mystery|1.2026892802559568| 6.681607112533093|
+|     Action| 1.200045595393877| 6.666919974410428|
+|     Sci-Fi| 1.194815607346662| 6.637864485259233|
+|   Thriller|1.1697242457123924| 6.498468031735513|
+|  Adventure|1.1484714234825373| 6.380396797125207|
+|      Crime|1.1445769369801817| 6.358760761001009|
+|     Horror|1.1179703246322203|  6.21094624795678|
+|        War|1.1008587897912252|6.1158821655068065|
+|    Western|1.0112288134883851| 5.617937852713251|
+|  Film-Noir|0.8982966099322304| 4.990536721845724|
+|    Musical|0.8017342259033022| 4.454079032796124|
+
+
+
+![alt text](/Users/jf250049/Desktop/genreScore.png)
 ---
 #### Proof of concept - Trying to weight ratings based on how recent they are
 ###### This was done by implementing Reddit's old 'hotness' algorithm as per the below Python code in Scala - more info available at https://medium.com/hacking-and-gonzo/how-reddit-ranking-algorithms-work-ef111e33d0d9
