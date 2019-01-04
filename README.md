@@ -1,5 +1,5 @@
 cmd + shift + p -> preview in browser
-# Software development rotation 
+# MovieLens Analysis
 
 [Proof of concept time decay](#proof-of-concept-trying-to-weight-ratings-based-on-how-recent-they-are)
 ### Applying a threshold on the minimum number of ratings a movie should have
